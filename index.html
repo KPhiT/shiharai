@@ -54,16 +54,20 @@
   <div id="result"></div>
 
 <script>
+// iOS Safari対策：DOMContentLoaded後に処理
 let groupId = 0;
+
+document.addEventListener('DOMContentLoaded', () => {
+  addGroup();
+});
 
 function addGroup() {
   const groupsDiv = document.getElementById('groups');
   const div = document.createElement('div');
   div.className = 'group';
-  div.dataset.id = groupId++;
 
   div.innerHTML = `
-    <label>グループ名：<input type="text" class="name" value="グループ${groupId}" /></label>
+    <label>グループ名：<input type="text" class="name" value="グループ${groupId + 1}" /></label>
     <label>人数：<input type="number" class="people" value="1" /></label>
     <label>
       支払い方法：
@@ -74,10 +78,15 @@ function addGroup() {
     </label>
     <label>金額 or 係数：<input type="number" class="value" value="0" /></label>
     <label><input type="checkbox" class="organizer" /> 幹事（端数調整）</label>
-    <button onclick="this.parentElement.remove()" style="background:#ff3b30;margin-top:10px;">グループ削除</button>
+    <button type="button" onclick="removeGroup(this)" style="background:#ff3b30;margin-top:10px;">グループ削除</button>
   `;
 
   groupsDiv.appendChild(div);
+  groupId++;
+}
+
+function removeGroup(btn) {
+  btn.closest('.group').remove();
 }
 
 function calculate() {
@@ -107,12 +116,18 @@ function calculate() {
   const remain = total - fixedTotal;
   let calculatedSum = 0;
 
-  data.forEach((d, i) => {
+  data.forEach(d => {
     if (d.type === 'fixed') {
       d.total = d.value;
     } else {
-      d.total = Math.round(remain * (d.value * d.people) / rateSum);
+      d.total = remain * (d.value * d.people) / rateSum;
     }
+
+    // 1人あたり500円単位で丸め
+    let per = Math.round(d.total / d.people);
+    per = Math.round(per / 500) * 500;
+    d.total = per * d.people;
+
     calculatedSum += d.total;
   });
 
@@ -123,17 +138,12 @@ function calculate() {
 
   let html = '';
   data.forEach(d => {
-    let perPerson = Math.round(d.total / d.people);
-    // 500円単位で丸め（四捨五入）
-    perPerson = Math.round(perPerson / 500) * 500;
+    const perPerson = Math.round(d.total / d.people);
     html += `<p><strong>${d.name}</strong>：合計 ${d.total} 円（1人 ${perPerson} 円）${d.organizer ? ' ※幹事' : ''}</p>`;
   });
 
   document.getElementById('result').innerHTML = html;
 }
-}
-
-addGroup();
 </script>
 </body>
 </html>
