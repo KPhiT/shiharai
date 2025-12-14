@@ -123,6 +123,7 @@ function addGroup(data = {}) {
     </label>
     <label>金額 / 係数
       <input type="number" class="value" value="${data.value || 0}">
+      <small>※ 金額指定の場合は「1人あたり金額」</small>
     </label>
     <label>
       <input type="checkbox" class="organizer"> 幹事（端数調整）
@@ -190,7 +191,8 @@ function calculate() {
 
   data.forEach(d => {
     if (d.type === 'fixed') {
-      d.total = d.value;
+      // 金額指定は「1人あたり金額」
+      d.total = d.value * d.people;
     } else {
       let per = remain * (d.value * d.people) / rateSum / d.people;
       per = Math.round(per / 500) * 500;
