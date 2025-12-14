@@ -5,12 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>忘年会 支払額計算</title>
 
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="忘年会精算">
-
   <style>
     :root {
       --bg: #f7f7f7;
@@ -29,55 +23,64 @@
       }
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      padding: 12px; margin: 0;
+      margin: 0;
+      padding: 12px;
       background: var(--bg);
       color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
+    h1 { font-size: 1.4em; }
+    label { display: block; margin-top: 8px; }
     input, select, button {
       width: 100%;
       font-size: 1.1em;
       padding: 14px;
       margin-top: 6px;
       box-sizing: border-box;
-      background: var(--card);
-      color: var(--text);
       border-radius: 12px;
     }
-    button { background: var(--primary); color: #fff; border: none; min-height: 48px; }
-    .group { background: var(--card); border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
-    #result p { background: var(--card); padding: 10px; border-radius: 8px; margin-bottom: 8px; }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      min-height: 48px;
+    }
+    .danger { background: var(--danger); }
+    .group {
+      background: var(--card);
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    #result p {
+      background: var(--card);
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
-  <h1>忘年会 支払額計算アプリ</h1>
+  <h1>忘年会 支払額計算</h1>
 
   <label>
-    合計金額：
-    <input type="number" id="totalAmount" value="0" />
+    合計金額
+    <input type="number" id="totalAmount" />
   </label>
 
   <h2>グループ</h2>
   <div id="groups"></div>
 
-  <button onclick="addGroup()">グループ追加</button>
-  <button onclick="calculate()">計算</button>
+  <button id="addBtn">グループ追加</button>
+  <button id="calcBtn">計算</button>
 
   <h2>結果</h2>
   <div id="result"></div>
 
 <script>
-// ===== 初期化 =====
+// ===== 安定版 完成コード =====
 let groupId = 0;
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadState();
-  if (document.querySelectorAll('.group').length === 0) {
-    addGroup();
-  }
-});
-
-// ===== 状態保存 =====
 function saveState() {
   const state = {
     totalAmount: document.getElementById('totalAmount').value,
@@ -94,73 +97,72 @@ function saveState() {
 
 function loadState() {
   const raw = localStorage.getItem('bonenkaiState');
-  if (!raw) return;
+  if (!raw) return false;
   const state = JSON.parse(raw);
-  document.getElementById('totalAmount').value = state.totalAmount || 0;
+  document.getElementById('totalAmount').value = state.totalAmount || '';
   state.groups.forEach(g => addGroup(g));
+  return true;
 }
 
-// ===== グループ操作 =====
 function addGroup(data = {}) {
-  const groupsDiv = document.getElementById('groups');
   const div = document.createElement('div');
   div.className = 'group';
 
   div.innerHTML = `
-    <label>グループ名：<input class="name" value="${data.name || 'グループ' + (groupId + 1)}"></label>
-    <label>人数：<input type="number" class="people" value="${data.people || 1}"></label>
-    <label>支払い方法：
+    <label>グループ名
+      <input class="name" value="${data.name || 'グループ' + (groupId + 1)}">
+    </label>
+    <label>人数
+      <input type="number" class="people" value="${data.people || 1}">
+    </label>
+    <label>支払い方法
       <select class="type">
         <option value="fixed">金額指定</option>
         <option value="rate">傾斜(係数)</option>
       </select>
     </label>
-    <label>金額 or 係数：<input type="number" class="value" value="${data.value || 0}"></label>
-    <label><input type="checkbox" class="organizer" ${data.organizer ? 'checked' : ''}> 幹事</label>
-    <button type="button" onclick="removeGroup(this)" style="background:#ff3b30">削除</button>
+    <label>金額 / 係数
+      <input type="number" class="value" value="${data.value || 0}">
+    </label>
+    <label>
+      <input type="checkbox" class="organizer"> 幹事（端数調整）
+    </label>
+    <button class="danger">グループ削除</button>
   `;
 
-  groupsDiv.appendChild(div);
+  document.getElementById('groups').appendChild(div);
+
   if (data.type) div.querySelector('.type').value = data.type;
-  groupId++;
-  bindAutoSave(div);
-  bindOrganizerExclusive(div);
-  saveState();
-}
+  if (data.organizer) div.querySelector('.organizer').checked = true;
 
-function removeGroup(btn) {
-  btn.closest('.group').remove();
-  saveState();
-}
-
-function bindAutoSave(el) {
-  el.querySelectorAll('input,select').forEach(i => {
-    i.addEventListener('change', saveState);
-  });
-}
-
-// 幹事は1グループのみ
-function bindOrganizerExclusive(el) {
-  const checkbox = el.querySelector('.organizer');
-  checkbox.addEventListener('change', () => {
-    if (!checkbox.checked) return;
-    document.querySelectorAll('.organizer').forEach(cb => {
-      if (cb !== checkbox) cb.checked = false;
-    });
+  // イベント
+  div.querySelector('.danger').addEventListener('click', () => {
+    div.remove();
     saveState();
   });
-}(el) {
-  el.querySelectorAll('input,select').forEach(i => {
-    i.addEventListener('change', saveState);
+
+  div.querySelector('.organizer').addEventListener('change', e => {
+    if (e.target.checked) {
+      document.querySelectorAll('.organizer').forEach(cb => {
+        if (cb !== e.target) cb.checked = false;
+      });
+    }
+    saveState();
   });
+
+  div.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('change', saveState);
+  });
+
+  groupId++;
+  saveState();
 }
 
-// ===== 計算 =====
 function calculate() {
   const total = Number(document.getElementById('totalAmount').value);
   const groups = document.querySelectorAll('.group');
 
-  let fixedTotal = 0;
+  let fixed = 0;
   let rateSum = 0;
   let organizerIndex = -1;
   let totalPeople = 0;
@@ -178,12 +180,12 @@ function calculate() {
     };
     totalPeople += d.people;
     if (d.organizer) organizerIndex = i;
-    if (d.type === 'fixed') fixedTotal += d.value;
+    if (d.type === 'fixed') fixed += d.value;
     if (d.type === 'rate') rateSum += d.value * d.people;
     data.push(d);
   });
 
-  const remain = total - fixedTotal;
+  const remain = total - fixed;
   let sum = 0;
 
   data.forEach(d => {
@@ -197,8 +199,9 @@ function calculate() {
     sum += d.total;
   });
 
-  const diff = total - sum;
-  if (organizerIndex >= 0) data[organizerIndex].total += diff;
+  if (organizerIndex >= 0) {
+    data[organizerIndex].total += (total - sum);
+  }
 
   let html = `<p><strong>合計人数：</strong>${totalPeople} 人</p>`;
   data.forEach(d => {
@@ -206,8 +209,13 @@ function calculate() {
   });
 
   document.getElementById('result').innerHTML = html;
-  saveState();
 }
+
+// 初期化
+document.getElementById('addBtn').addEventListener('click', () => addGroup());
+document.getElementById('calcBtn').addEventListener('click', calculate);
+
+if (!loadState()) addGroup();
 </script>
 </body>
 </html>
